@@ -7,6 +7,8 @@ AX.25 framing
 import re
 import time
 from collections.abc import Sequence
+from bitstring import BitStream
+from bitstring import Bits
 
 # Frame type classes
 
@@ -15,7 +17,7 @@ class AX25Frame(object):
     Base class for AX.25 frames.
     """
 
-    POLL_FINAL  = 0b00010000
+    POLL_FINAL      = 0b00010000
 
     CONTROL_I_MASK  = 0b00000001
     CONTROL_I_VAL   = 0b00000000
@@ -38,6 +40,46 @@ class AX25Frame(object):
     PID_NETROM          = 0xcf
     PID_NO_L3           = 0xf0
     PID_ESCAPE          = 0xff
+
+    # Each AX25 frame is prefixed and suffixed with this flag
+    FRAME_FLAG          = 0b01111110
+
+    @classmethod
+    def stuff_bits(cls, bytes):
+        """
+        Bitstuffs an octal bytes object returning a non-octal bitstring
+        """
+        bits = BitStream(bytes)
+        set_bits = 0
+        while bits.pos < bits.len:
+            if bits.read('bool'):
+                set_bits += 1
+            else:
+                set_bits = 0
+            if set_bits == 5:
+                bits.insert('0b0', bits.pos)
+                set_bits = 0
+        return Bits(bits) # return an immutable copy
+
+    @classmethod
+    def unstuff_bits(cls, bits):
+        """
+        Unstuffs a non-octal bitstring returning an octal bytes object
+        """
+        oldbits = BitStream(bits)
+        newbits = BitStream()
+        set_bits = 0
+        while oldbits.pos < oldbits.len:
+            val = oldbits.read('bool')
+            if set_bits == 5 and not val:
+                set_bits = 0
+                continue
+            if val:
+                set_bits += 1
+            else:
+                set_bits = 0
+            newbits.append(Bits(bool=val))
+        return newbits.bytes
 
     @classmethod
     def decode(cls, data):
