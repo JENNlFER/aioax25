@@ -7,15 +7,15 @@ AX.25 framing
 import re
 import time
 from collections.abc import Sequence
-from bitstring import BitStream
-from bitstring import Bits
+from bitstring import BitStream, BitArray, Bits
+from crccheck.crc import Crc16Ccitt
 
 # Frame type classes
 
 class AX25Frame(object):
     """
     Base class for AX.25 frames.
-    """
+    """ 
 
     POLL_FINAL      = 0b00010000
 
@@ -82,7 +82,25 @@ class AX25Frame(object):
         return newbits.bytes
 
     @classmethod
-    def decode(cls, data):
+    def reverse_byte(byte):
+        """
+        flips the endianness of a byte
+        """
+        bits = BitArray(byte)
+        bits.reverse()
+        return bits.bytes
+
+    @classmethod
+    def calculate_fcs(*args):
+        """
+        Calculates a 16 bit CRC-CCITT FCS
+        """
+        input = b''.join(args)
+        crc = Crc16Ccitt.calc(input)
+        return crc.to_bytes(2, 'big')
+
+    @classmethod
+    def decode(cls, data): #TODO: adjust indices for new data structure
         """
         Decode a single AX.25 frame from the given data.
         """
@@ -133,20 +151,32 @@ class AX25Frame(object):
         self._timestamp = timestamp or time.time()
         self._deadline = deadline
 
-    def _encode(self):
+    def _encode(self): #TODO: fix encoding ? and include flags ?
         """
         Generate the encoded AX.25 frame.
+        Here's where we do all the endian changing
+        It'll only work for this specific packet type but that's all we need tbh
         """
-        # Send the addressing header
+
+        # Address field
         for byte in bytes(self.header):
-            yield byte
+            yield self.reverse_byte(byte)
 
-        # Send the control byte
-        yield self._control
+        # Control field
+        yield self.reverse_byte(self._control)
 
-        # Send the payload
-        for byte in self.frame_payload:
-            yield byte
+        # PID field
+        yield self.reverse_byte(self._pid)
+
+        # Info Field
+        for byte in self._payload:
+            yield self.reverse_byte(byte)
+
+        #TODO - not sure to include PID or not?
+        # FCS field
+        fcs = self.calculate_fcs(self._header, self._control, self._pid, self.frame_payload)
+        yield fcs[0]
+        yield fcs[1]
 
     def __bytes__(self):
         """
@@ -566,7 +596,7 @@ class AX25FrameHeader(object):
         self._source = AX25Address.decode(source)
         self._repeaters = AX25Path(*(repeaters or []))
 
-    def _encode(self):
+    def _encode(self): 
         """
         Generate an encoded AX.25 frame header
         """
