@@ -101,9 +101,9 @@ class AX25Frame(object):
     @classmethod
     def flag_frame(cls, frame):
         raw_frame = bytes(frame)
-        bitstream = stuff_bits(raw_frame)
-        bitstream.prepend(Bits(bytes=FRAME_FLAG))
-        bitstream.append(Bits(bytes=FRAME_FLAG))
+        bitstream = cls.stuff_bits(raw_frame)
+        bitstream.prepend(Bits(bytes=cls.FRAME_FLAG))
+        bitstream.append(Bits(bytes=cls.FRAME_FLAG))
         last_byte = bitstream.len % 8
         if last_byte != 0:
             padding = 8 - last_byte
