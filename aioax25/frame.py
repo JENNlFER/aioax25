@@ -16,7 +16,6 @@ class AX25Frame(object):
     """
     Base class for AX.25 frames.
     """ 
-
     POLL_FINAL      = 0b00010000
 
     CONTROL_I_MASK  = 0b00000001
@@ -42,7 +41,7 @@ class AX25Frame(object):
     PID_ESCAPE          = 0xff
 
     # Each AX25 frame is prefixed and suffixed with this flag
-    FRAME_FLAG          = 0b01111110
+    FRAME_FLAG          = b'\x7e'
 
     @classmethod
     def stuff_bits(cls, bytes):
@@ -59,7 +58,7 @@ class AX25Frame(object):
             if set_bits == 5:
                 bits.insert('0b0', bits.pos)
                 set_bits = 0
-        return Bits(bits) # return an immutable copy
+        return bits 
 
     @classmethod
     def unstuff_bits(cls, bits):
@@ -82,7 +81,7 @@ class AX25Frame(object):
         return newbits.bytes
 
     @classmethod
-    def reverse_byte(byte):
+    def reverse_byte(cls, byte):
         """
         flips the endianness of a byte
         """
@@ -91,13 +90,26 @@ class AX25Frame(object):
         return bits.bytes
 
     @classmethod
-    def calculate_fcs(*args):
+    def calculate_fcs(cls, *args):
         """
         Calculates a 16 bit CRC-CCITT FCS
         """
         input = b''.join(args)
         crc = Crc16Ccitt.calc(input)
         return crc.to_bytes(2, 'big')
+
+    @classmethod
+    def flag_frame(cls, frame):
+        raw_frame = bytes(frame)
+        bitstream = stuff_bits(raw_frame)
+        bitstream.prepend(Bits(bytes=FRAME_FLAG))
+        bitstream.append(Bits(bytes=FRAME_FLAG))
+        last_byte = bitstream.len % 8
+        if last_byte != 0:
+            padding = 8 - last_byte
+            for i in range(0, padding):
+                bitstream.append(Bits(bool=False))
+        return bitstream.bytes
 
     @classmethod
     def decode(cls, data): #TODO: adjust indices for new data structure

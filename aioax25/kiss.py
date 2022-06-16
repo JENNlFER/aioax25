@@ -10,6 +10,7 @@ from asyncio import Protocol, ensure_future, get_event_loop
 from serial_asyncio import create_serial_connection
 from serial import EIGHTBITS, PARITY_NONE, STOPBITS_ONE
 from .signal import Signal
+from .frame import AX25Frame
 from binascii import b2a_hex
 import time
 import logging
@@ -612,12 +613,18 @@ class KISSPort(object):
     def port(self):
         return self._port
 
+
     def send(self, frame):
         """
         Send a raw AX.25 frame to the TNC via this port.
+        We're adding AX25 flags + bitstuffing here (this should really be
+        done in frame.py, but I don't feel like redoing their __byte__ iterator)
         """
-        self._log.debug('XMIT AX.25 %s', frame)
-        self._device._send(KISSCmdData(self.port, bytes(frame)))
+        
+        flagged_frame = AX25Frame.flag_frame(frame)
+
+        self._log.debug('XMIT AX.25 %s', flagged_frame)
+        self._device._send(KISSCmdData(self.port, flagged_frame))
 
     def _receive_frame(self, frame):
         """
