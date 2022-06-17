@@ -4,6 +4,7 @@
 AX.25 framing
 """
 
+import dataclasses
 import re
 import time
 from collections.abc import Sequence
@@ -85,15 +86,16 @@ class AX25Frame(object):
         """
         flips the endianness of a byte
         """
-        bits = BitArray(byte)
+        bits = BitArray(Bits(uint=byte, length=8))
         bits.reverse()
-        return bits.bytes
+        return bits.uint
 
     @classmethod
     def calculate_fcs(cls, *args):
         """
         Calculates a 16 bit CRC-CCITT FCS
         """
+
         input = b''.join(args)
         crc = Crc16Ccitt.calc(input)
         return crc.to_bytes(2, 'big')
@@ -173,12 +175,12 @@ class AX25Frame(object):
         # Address field
         for byte in bytes(self.header):
             yield self.reverse_byte(byte)
-
+ 
         # Control field
-        yield self.reverse_byte(self._control)
+        yield self.reverse_byte(self.control)
 
         # PID field
-        yield self.reverse_byte(self._pid)
+        yield self.reverse_byte(self.pid)
 
         # Info Field
         for byte in self._payload:
@@ -186,7 +188,12 @@ class AX25Frame(object):
 
         #TODO - not sure to include PID or not?
         # FCS field
-        fcs = self.calculate_fcs(self._header, self._control, self._pid, self.frame_payload)
+        a = bytes(self.header)
+        b = int.to_bytes(self._control, 1, 'big')
+        c = int.to_bytes(self._pid, 1, 'big')
+        d = self._payload
+
+        fcs = self.calculate_fcs(a, b, c, d)
         yield fcs[0]
         yield fcs[1]
 
