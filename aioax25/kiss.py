@@ -622,7 +622,6 @@ class KISSPort(object):
         """
         
         flagged_frame = AX25Frame.flag_frame(frame)
-        print('START', flagged_frame.hex(), 'END')
 
         self._log.debug('XMIT AX.25 %s', flagged_frame)
         self._device._send(KISSCmdData(self.port, flagged_frame))
