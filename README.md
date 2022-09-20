@@ -1,7 +1,7 @@
 # `aioax25`: AX.25 and APRS library in `asyncio`
 
-AX25UnnumberedInformationFrames can be transmitted according to AX25(2.X) standards
-Everything else probably doesn't work
+AX25UnnumberedInformationFrames can be transmitted properly according to AX25(2.X) standards
+I haven't touched anything else
 
 - Jennifer
 
